@@ -21,6 +21,7 @@ namespace Inv_Nancy {
     public class Inventory
     {
         private Dictionary<string, InvItem> _inv = new Dictionary<string, InvItem>();
+        private Dictionary<string, InvItem> _expired = new Dictionary<string, InvItem>();
         
         // Add an item to inventory, or increment the count if the same label is provided
         // TODO: resolve what to do if the type is different; 
@@ -38,7 +39,35 @@ namespace Inv_Nancy {
         // remove ()
         public bool remove(string label)
         {
-            return _inv.Remove(label);
+            InvItem ii;
+            if(_inv.TryGetValue(label, out ii)) {
+                ii.Count--;
+                if (ii.Count >= 1) { 
+                    return true; 
+                }
+                else
+                {
+                    _inv.Remove(label);
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        }
+        
+        public Dictionary<string, InvItem> findExpiredItems()
+        {
+            _expired.Clear();
+            foreach (var kv in _inv)
+            {
+                string key = kv.Key;
+                InvItem ii = kv.Value;
+                if (ii.Expiration <= DateTime.Now) {
+                    _expired.Add(key, ii);
+                    _inv.Remove(key);
+                }
+            }
+            return _expired;
         }
     }
 }

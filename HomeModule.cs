@@ -17,23 +17,63 @@ namespace Inv_Nancy
             
         public HomeModule()
         {
-            Get["/"] = _ => @"<p>Inventory control
-                <p>add: 
-                <form action=/add/>
-                 <table>
-                 <tr><td>label:</td><td><input type=text name=""label"" maxlength=40></td></tr>
-                 <tr><td>expiration: </td><td><input type=text name=""expiration"" maxlength=20></td></tr>
-                 <tr><td>type: </td><td><input type=text name=""type"" maxlength=40></td></tr>
-                 <tr><td></td><td><input type=submit></td></tr>
-                 </table>
-                 </form>
-                ";
-            
+            // testing function
             Get["/showquerystring"] = args => Response.AsJson(new
             {
                 Query = Request.Query,
                 QueryString = Request.Url.Query
             });
+
+            Get["/"] = _ => {
+                string defaultExpiration = DateTime.Now.AddSeconds(5).ToString();
+                return @"
+            <html>
+            <head><title>Inventory control</title>
+            <script>
+            function poller() {
+                // find expired items
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function() {
+                    //if (xhttp.status == 200) // xhttp.readyState == 4  
+                    //{
+                    document.getElementById(""expiredItems"").innerHTML = xhttp.responseText 
+                    + ""<br>response code="" + xhttp.status + ""<br>readyState="" + xhttp.readyState;
+                    //}
+                };
+                xhttp.open(""GET"", ""/expired/"", true);
+                xhttp.send();
+                setTimeout(poller, 3000);      
+            }
+            poller();
+            </script>
+            </head>
+            <body>
+            <p>Inventory control
+                <p>add: 
+                <form action=/add/>
+                 <table>
+                 <tr><td>label:</td><td><input type=text name=""label"" maxlength=40></td></tr>
+                 <tr><td>expiration: </td><td><input type=text name=""expiration"" maxlength=20 value="""
+                  + defaultExpiration + @"""></td></tr>
+                 <tr><td>type: </td><td><input type=text name=""type"" maxlength=40></td></tr>
+                 <tr><td></td><td><input type=submit></td></tr>
+                 </table>
+                 </form>
+                 
+                 <p>remove: 
+                 <form action=/remove/>
+                 <table>
+                 <tr><td>label:</td><td><input type=text name=""label"" maxlength=40></td></tr>
+                 <tr><td></td><td><input type=submit></td></tr>
+                 </table>
+                 </form>
+                 
+                 <pre id=""expiredItems""></pre>
+                 
+                 </body>
+                 </html>
+                ";
+            };
             
             Get["/add/"] = p => {
                 // Get["/add/{label}/{expiration}/{type}"] would result in this syntax:
@@ -42,8 +82,9 @@ namespace Inv_Nancy
                 // Given QueryString = "label={label}&expiration={expiration}&type={type}"
                 InvItem ii = new InvItem(Request.Query.label, Request.Query.expiration, Request.Query.type, 1);
                 InvItem i2 = Startup.inv.add(ii);    
-                return "Item added: " + Response.AsJson(i2);
+                return Response.AsJson(i2);
             };
+            
             Get["/remove/"] = _ => {
                 string lbl = Request.Query.Label; 
                 bool success = Startup.inv.remove(lbl);    
@@ -52,6 +93,10 @@ namespace Inv_Nancy
                 } else {
                     return "Failed to remove item: " + lbl;
                 }
+            };
+            
+            Get["/expired/"] = _ => {
+                return Response.AsJson(Startup.inv.findExpiredItems());
             };
         }
     }
